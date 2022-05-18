@@ -18,7 +18,3 @@ pub fn gen(name: &str) {
     let output = log(&format!("Hello, {}!", name));
 }
 
-struct Columns {
-    name: String,
-    sql_type: String,
-}

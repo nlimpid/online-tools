@@ -6,8 +6,9 @@ edition = "2021"
 [lib]
 name = "dev_tools"
 path = "src/lib.rs"
-#crate-type = ["cdylib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 sqlparser = "0.15.0"
 wasm-bindgen = "0.2"
+convert_case = "0.5.0"
