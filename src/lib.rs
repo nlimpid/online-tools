@@ -16,6 +16,7 @@ pub fn greet(name: &str) {
 #[wasm_bindgen]
 pub fn gen(name: &str) -> String {
     let inner_result = core::parse_sql(name.to_string());
+    return core::gen_go_code(inner_result.unwrap());
     match inner_result {
         Ok(res) => {
             let got = core::gen_go_code(res);
@@ -23,7 +24,7 @@ pub fn gen(name: &str) -> String {
         }
         Err(e) => {
             println!("err {}", e);
-            return "".to_string()
+            return "".to_string();
         }
     }
 }

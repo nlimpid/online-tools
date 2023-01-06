@@ -1,14 +1,14 @@
 [package]
-name = "dev_tools"
-version = "0.1.0"
 edition = "2021"
+name = "common_dev_tools"
+version = "0.1.0"
 
 [lib]
 name = "dev_tools"
-path = "src/lib.rs"
-crate-type = ["cdylib"]
+# path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
 
 [dependencies]
+convert_case = "0.5.0"
 sqlparser = "0.15.0"
 wasm-bindgen = "0.2"
-convert_case = "0.5.0"

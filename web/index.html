@@ -1,17 +1,43 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <title>hello-wasm example</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script type="module">
+        // import init from "../pkg/dev_tools.js";
+        import { default as wasm, greet, gen } from "../pkg/dev_tools.js";
+        // import init from "/wasm.js";
+        // wasm().then((module) => {
+        //     module.greet("Test");
+        //     console.log(module);
+        //     greet("Test");  // this should work! it's js wrapper around C function
+        // })
+        // init().then(greet("hello"));
+        // $(document).ready(function () {
+        //     $('#txtid').click(function () { changeDiv(); });
+        //     $('#txtid').focus(); // Set Focus on Textarea (now caret appears)
+        //     $('#txtid').val('something'); // Fill content (caret will be moved to the end of value)
+        //     $('#txtid').trigger('click'); // Click Handler will be executed
+        // });
+        function changeDiv() {
+            var content = $("#txtid").val();
+            console.log(content);
+            greet("WebAssembly");
+            let data = gen(content);
+            console.log(data);
+            $("#output").val(data);
+        }
+        window.changeDiv = changeDiv;
+    </script>
 </head>
+
 <body>
-hello
-<script type="module">
-    import init, {greet} from "../pkg/dev_tools.js";
-    init()
-        .then(() => {
-            greet("WebAssembly")
-        });
-</script>
+    hello
+    <textarea id='txtid' rows='5' cols='20'></textarea>
+    <button onclick=changeDiv()>hello</button>
+    <textarea id='output' rows='5' cols='20'></textarea>
 </body>
+
 </html>

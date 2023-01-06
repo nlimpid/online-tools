@@ -4,7 +4,6 @@ use sqlparser::ast::Statement;
 use sqlparser::dialect::PostgreSqlDialect;
 use sqlparser::parser::{Parser, ParserError};
 use std::error::Error;
-use std::io::BufRead;
 
 pub struct SqlItem {
     table_name: String,
@@ -33,15 +32,7 @@ pub fn parse_sql(sql_str: String) -> Result<SqlItem, Box<dyn Error>> {
     // println!("Got: {}", val);
     match sss {
         // sqlparser::ast::Statement::CreateTable() => println!(ch  ()),
-        Statement::CreateTable {
-            or_replace,
-            temporary,
-            external,
-            if_not_exists,
-            name,
-            columns,
-            ..
-        } => {
+        Statement::CreateTable { name, columns, .. } => {
             if let Some(table_name) = name.0.last() {
                 res.table_name = table_name.clone().value
             }
@@ -71,7 +62,9 @@ pub fn parse_sql(sql_str: String) -> Result<SqlItem, Box<dyn Error>> {
 
 fn sql_type_to_go(typ: &DataType) -> String {
     let mut res: String = "".to_string();
+
     match typ {
+        DataType::TinyInt(_) => res = "int32".to_string(),
         DataType::String => res = "string".to_string(),
         DataType::Varchar(_) => res = "string".to_string(),
         DataType::Text => res = "string".to_string(),
@@ -82,9 +75,13 @@ fn sql_type_to_go(typ: &DataType) -> String {
         DataType::Timestamp => res = "time.Time".to_string(),
         DataType::Float(_) => res = "decimal.Decimal".to_string(),
         DataType::Double => res = "decimal.Decimal".to_string(),
+        DataType::Decimal(_, _) => res = "decimal.Decimal".to_string(),
         DataType::Custom(o) => {
-            if o.to_string() == "bigserial" {
-                res = "int64".to_string()
+            print!("object name is {}", o.to_string());
+            match o.to_string().as_str() {
+                "jsonb" => res = "JSONB".to_string(),
+                "bigserial" => res = "int64".to_string(),
+                _ => res = "string".to_string(),
             }
         }
         _ => res = "string".to_string(),
@@ -97,7 +94,11 @@ pub fn gen_go_code(item: SqlItem) -> String {
     let mut vec = Vec::new();
     vec.push(format!("type {} struct {{", tbl_name.to_case(Case::Pascal)));
     for c in item.columns {
-        vec.push(format!("\t{}\t{}", c.name.to_case(Case::Pascal), c.sql_type));
+        vec.push(format!(
+            "\t{}\t{}",
+            c.name.to_case(Case::Pascal),
+            c.sql_type
+        ));
     }
     vec.push("}}".to_string());
     return vec.join("\n");
@@ -112,41 +113,81 @@ mod tests {
 
     #[test]
     fn test_parse_sql() {
-        let sql = r#"CREATE TABLE "public"."ice_ca_listing"
-(
-    "id"                         bigserial NOT NULL PRIMARY KEY,
-    "created_at"                 timestamp          DEFAULT CURRENT_TIMESTAMP,
-    "updated_at"                 timestamp          DEFAULT CURRENT_TIMESTAMP,
-    "entry_date"                 varchar(255),
-    "event_id"                   varchar(255),
-    "revision"                   varchar(255),
-    "id_region"                  varchar(255),
-    "cusip"                      varchar(255),
-    "isin"                       varchar(255),
-    "ticker"                     varchar(255),
-    "security_type"              varchar(255),
-    "instrument_id"              varchar(255),
-    "instrument"                 jsonb     NOT NULL DEFAULT '{}'::jsonb,
-    "event_type"                 varchar(255),
-    "action_type"                varchar(255),
-    "record_date"                varchar(255),
-    "event_status"               varchar(255),
-    "event_description"          text,
-    "announcement_date"          varchar(255),
-    "announcement_status"        varchar(255),
-    "declaration_date"           varchar(255),
-    "expiration_date"            varchar(255),
-    "effective_date"             varchar(255),
-    "ex_date"                    varchar(255),
-    "payment_date"               varchar(255),
-    "dealing_date"               varchar(255),
-    "event_market_details"       jsonb     NOT NULL DEFAULT '{}'::jsonb,
-    "listing_type"               varchar(255),
-    "listing_market_code"        varchar(255),
-    "listing_market_description" varchar(255),
-    "new_market_code"            varchar(255),
-    "new_market_description"     varchar(255)
-)"#
+        let sql = r#"CREATE TABLE "public"."ipo_us_audit_list"
+        (
+            "id"                          bigserial    NOT NULL PRIMARY KEY,
+            "created_at"                  timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updated_at"                  timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "cik"                         varchar(128) NOT NULL DEFAULT '',
+            "temp_code"                   varchar(255) NOT NULL,
+            "formal_code"                 varchar(255) NOT NULL,
+            "form_stage"                  varchar(128) NOT NULL,
+            "preliminary_prospectus_time" timestamp NOT NULL,
+            "amend_prospectus_time"       timestamp NOT NULL
+        )"#
+        .to_string();
+        let inner_result = parse_sql(sql);
+        match inner_result {
+            Ok(res) => {
+                let got = gen_go_code(res);
+                println!("{}", got)
+            }
+            Err(e) => println!("err {}", e),
+        }
+    }
+
+    #[test]
+    fn test_parse_pg_type() {
+        let sql = r#"create table public.data_manager_task_history
+        (
+            id           bigserial,
+            created_at   timestamp default CURRENT_TIMESTAMP not null,
+            updated_at   timestamp default CURRENT_TIMESTAMP not null,
+            task_name varchar(255),
+            task_time timestamp,
+            status varchar(255),
+            statistic_content jsonb
+        )
+        "#
+        .to_string();
+        let inner_result = parse_sql(sql);
+        match inner_result {
+            Ok(res) => {
+                let got = gen_go_code(res);
+                println!("{}", got)
+            }
+            Err(e) => println!("err {}", e),
+        }
+    }
+
+    #[test]
+    fn test_parse_pg_type2() {
+        let sql = r#"CREATE TABLE "public"."ipos"
+        (
+            "id"                     bigserial    NOT NULL PRIMARY KEY,
+            "created_at"             timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updated_at"             timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "counter_id"             varchar(255) NOT NULL,
+            "code"                   varchar(255) NOT NULL,
+            "market"                 varchar(255) NOT NULL,
+            "ipo_date"               bigint       NOT NULL,
+            "issue_price"            numeric,
+            "issue_price_min"        numeric,
+            "issue_price_max"        numeric,
+            "issue_currency"         varchar(255) NOT NULL DEFAULT 0,
+            "prospectus"             varchar(255) NOT NULL DEFAULT 0,
+            "total_shares"           numeric      NOT NULL DEFAULT 0,
+            "sort"                   int8         NOT NULL DEFAULT 0,
+            "state"                  int4         NOT NULL DEFAULT 0,
+            "apply_start_date"       bigint       NOT NULL DEFAULT 0,
+            "pay_end_date"           bigint       NOT NULL DEFAULT 0,
+            "issue_result_publ_date" bigint       NOT NULL DEFAULT 0,
+            "pspl_mart_begin"        bigint       NOT NULL DEFAULT 0,
+            "pspl_mart_end"          bigint       NOT NULL DEFAULT 0,
+            "show_mart"              int4         NOT NULL DEFAULT 0,
+            "rec_purposes"           jsonb
+        );
+        "#
         .to_string();
         let inner_result = parse_sql(sql);
         match inner_result {
