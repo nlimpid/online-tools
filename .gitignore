@@ -39,3 +39,6 @@ tool/*.ntvs*
 tool/*.njsproj
 tool/*.sln
 tool/*.sw?
+
+
+.DS_Store
